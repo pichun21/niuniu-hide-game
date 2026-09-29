@@ -494,7 +494,7 @@
       <button class="secondary hint-btn" id="hintBtn">💡 提示 <span id="hintCount">3</span></button>
     </div>
   </div>
-  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.25</div>
+  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.21</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -740,7 +740,6 @@
   }
 
   function renderBoard(){
-    endSfxPlayed=null;
     board.innerHTML = "";
     board.style.gridTemplateColumns = "repeat("+N+", minmax(0,1fr))";
     board.dataset.size = String(N);
@@ -1126,7 +1125,6 @@
   }
 
   function endGame(){
-    playSafeEndTone("lose");
     lost = true;
     stopTimer();
     stopBgm();
@@ -1140,40 +1138,7 @@
     setTimeout(()=>gameOverModal.classList.add("show"),260);
   }
 
-
-  // v3.25：只加入整關成功 / 失敗音效；不碰棋盤點擊與狀態流程。
-  let endSfxPlayed=null;
-  function playSafeEndTone(kind){
-    if(!soundOn || endSfxPlayed===kind) return;
-    endSfxPlayed=kind;
-    try{
-      ensureAudio();
-      const now=audioCtx.currentTime;
-      const master=audioCtx.createGain();
-      master.gain.setValueAtTime(.0001,now);
-      master.gain.exponentialRampToValueAtTime(kind==="win" ? .16 : .13,now+.02);
-      master.gain.exponentialRampToValueAtTime(.0001,now+(kind==="win" ? .95 : .72));
-      master.connect(audioCtx.destination);
-
-      const notes=kind==="win"
-        ? [[523.25,0,.15],[659.25,.14,.16],[783.99,.28,.18],[1046.5,.47,.32]]
-        : [[392,0,.16],[329.63,.15,.17],[261.63,.31,.25]];
-
-      notes.forEach(([freq,delay,dur])=>{
-        const o=audioCtx.createOscillator(), g=audioCtx.createGain();
-        o.type=kind==="win" ? "sine" : "triangle";
-        o.frequency.setValueAtTime(freq,now+delay);
-        g.gain.setValueAtTime(.0001,now+delay);
-        g.gain.exponentialRampToValueAtTime(.55,now+delay+.015);
-        g.gain.exponentialRampToValueAtTime(.0001,now+delay+dur);
-        o.connect(g); g.connect(master);
-        o.start(now+delay); o.stop(now+delay+dur+.03);
-      });
-    }catch(e){}
-  }
-
   function win(){
-    playSafeEndTone("win");
     won = true;
     stopTimer();
     stopBgm();
