@@ -407,6 +407,12 @@
   #board .cell.swipe-feedback{animation:none !important}
   #board .cell.swipe-feedback::before{animation:swipeTouchLite .13s ease-out !important}
   @keyframes swipeTouchLite{0%{opacity:.72}100%{opacity:0}}
+
+  /* v3.23：單點 / 雙點的即時按壓回饋 */
+  #board .cell.tap-feedback{animation:tapCellPress .12s ease-out}
+  #board .cell.dog-tap-feedback{animation:dogTapPress .16s ease-out}
+  @keyframes tapCellPress{0%{transform:scale(1)}42%{transform:scale(.94)}100%{transform:scale(1)}}
+  @keyframes dogTapPress{0%{transform:scale(1)}38%{transform:scale(.92)}72%{transform:scale(1.035)}100%{transform:scale(1)}}
 </style>
 </head>
 <body>
@@ -494,7 +500,7 @@
       <button class="secondary hint-btn" id="hintBtn">💡 提示 <span id="hintCount">3</span></button>
     </div>
   </div>
-  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.21</div>
+  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.23</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -733,6 +739,9 @@
     if(won || lost || states[r][c]!==1) return false;
     states[r][c]=0;
     refresh();
+    const tappedCell=board.querySelector('.cell[data-r="'+r+'"][data-c="'+c+'"]');
+    tapFeedback(tappedCell,"erase");
+    playTapTone("erase");
     saveGame();
     if(navigator.vibrate) navigator.vibrate(12);
     showToast("已取消 ✕");
@@ -1025,8 +1034,17 @@
       return;
     }
 
+    const prevState=states[r][c];
     states[r][c] = (states[r][c] + 1) % 3;
     refresh();
+    const tappedCell=board.querySelector('.cell[data-r="'+r+'"][data-c="'+c+'"]');
+    if(states[r][c]===1){
+      tapFeedback(tappedCell,"mark");
+      playTapTone("mark");
+    }else if(states[r][c]===2){
+      tapFeedback(tappedCell,"dog");
+      playTapTone("dog");
+    }
     saveGame();
 
     // 只有「放下妞妞」時判斷位置對錯，避免標記 X 時一直被提示。
@@ -1125,6 +1143,7 @@
   }
 
   function endGame(){
+    playEndTone("lose");
     lost = true;
     stopTimer();
     stopBgm();
@@ -1138,7 +1157,96 @@
     setTimeout(()=>gameOverModal.classList.add("show"),260);
   }
 
+
+
+  // v3.23：棋盤點擊 UI 回饋。短音避免長時間解題造成疲勞。
+  function playTapTone(kind){
+    if(!soundOn) return;
+    try{
+      ensureAudio();
+      const now=audioCtx.currentTime;
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.type=kind==="dog" ? "sine" : "triangle";
+      const freq=kind==="erase" ? 360 : kind==="dog" ? 620 : 455;
+      o.frequency.setValueAtTime(freq,now);
+      if(kind==="dog") o.frequency.exponentialRampToValueAtTime(760,now+.075);
+      g.gain.setValueAtTime(.0001,now);
+      g.gain.exponentialRampToValueAtTime(kind==="dog" ? .050 : .032,now+.008);
+      g.gain.exponentialRampToValueAtTime(.0001,now+(kind==="dog" ? .115 : .065));
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(now); o.stop(now+(kind==="dog" ? .13 : .08));
+    }catch(e){}
+  }
+  function tapFeedback(cell,kind="mark"){
+    if(!cell) return;
+    const cls=kind==="dog" ? "dog-tap-feedback" : "tap-feedback";
+    cell.classList.remove("tap-feedback","dog-tap-feedback");
+    void cell.offsetWidth;
+    cell.classList.add(cls);
+    cell.addEventListener("animationend",()=>cell.classList.remove(cls),{once:true});
+    if(navigator.vibrate) navigator.vibrate(kind==="dog" ? 7 : 3);
+  }
+
+  // v3.22：整關成功 / 失敗專屬音效。沿用 Web Audio，不增加外部音檔。
+  function playEndTone(kind){
+    if(!soundOn) return;
+    try{
+      ensureAudio();
+      const now=audioCtx.currentTime;
+      const master=audioCtx.createGain();
+      master.gain.setValueAtTime(0.0001,now);
+      master.gain.exponentialRampToValueAtTime(kind==="win" ? 0.20 : 0.15,now+.025);
+      master.gain.exponentialRampToValueAtTime(0.0001,now+(kind==="win" ? 1.02 : .76));
+      master.connect(audioCtx.destination);
+
+      const notes = kind==="win"
+        ? [
+            [523.25,0,.17,"sine"],
+            [659.25,.16,.18,"sine"],
+            [783.99,.32,.20,"sine"],
+            [1046.50,.53,.38,"triangle"]
+          ]
+        : [
+            [392.00,0,.18,"triangle"],
+            [329.63,.17,.19,"triangle"],
+            [261.63,.36,.28,"sine"]
+          ];
+
+      notes.forEach(([freq,delay,dur,type])=>{
+        const o=audioCtx.createOscillator();
+        const g=audioCtx.createGain();
+        o.type=type;
+        o.frequency.setValueAtTime(freq,now+delay);
+        g.gain.setValueAtTime(.0001,now+delay);
+        g.gain.exponentialRampToValueAtTime(kind==="win" ? .62 : .48,now+delay+.018);
+        g.gain.exponentialRampToValueAtTime(.0001,now+delay+dur);
+        o.connect(g); g.connect(master);
+        o.start(now+delay); o.stop(now+delay+dur+.03);
+      });
+
+      // 成功多一顆很輕的高音 sparkle，讓收尾更有完成感。
+      if(kind==="win"){
+        const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+        o.type="sine"; o.frequency.setValueAtTime(1567.98,now+.64);
+        g.gain.setValueAtTime(.0001,now+.64);
+        g.gain.exponentialRampToValueAtTime(.20,now+.66);
+        g.gain.exponentialRampToValueAtTime(.0001,now+.92);
+        o.connect(g); g.connect(master); o.start(now+.64); o.stop(now+.96);
+      }
+
+      // 結束音效期間把 BGM 暫時壓低，播完再恢復原本音量。
+      if(bgmAudio && !bgmAudio.paused){
+        const normalVol=0.20;
+        bgmAudio.volume=0.055;
+        setTimeout(()=>{
+          if(soundOn && bgmAudio) bgmAudio.volume=normalVol;
+        },kind==="win" ? 1100 : 850);
+      }
+    }catch(e){}
+  }
+
   function win(){
+    playEndTone("win");
     won = true;
     stopTimer();
     stopBgm();
