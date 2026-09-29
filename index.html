@@ -237,7 +237,7 @@
       <button class="primary" id="checkBtn">檢查一下</button>
     </div>
   </div>
-  <div class="footer">🐾 妞妞遊戲室 · Prototype v1.7</div>
+  <div class="footer">🐾 妞妞遊戲室 · Prototype v1.8</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -363,36 +363,58 @@
   let bgmTimer = null;
   let bgmStarted = false;
 
-  function bgmNote(freq, delay, duration=.34, volume=.010){
+  function bgmNote(freq, delay, duration=.22, volume=.010, type="triangle"){
     if(!soundEnabled || won || lost) return;
     const ctx = getAudioCtx();
     if(!ctx) return;
     const now = ctx.currentTime + delay;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = "sine";
+    osc.type = type;
     osc.frequency.setValueAtTime(freq, now);
+
+    // 比提示音柔和：短起音、自然收尾，做出玩具琴／木琴般的感覺。
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(volume, now + .04);
+    gain.gain.exponentialRampToValueAtTime(volume, now + .018);
+    gain.gain.exponentialRampToValueAtTime(Math.max(volume*.42,.0002), now + duration*.45);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
     osc.connect(gain).connect(ctx.destination);
     osc.start(now);
-    osc.stop(now + duration + .04);
+    osc.stop(now + duration + .03);
   }
 
   function playBgmPhrase(){
     if(!soundEnabled || won || lost) return;
-    // C 大調五聲音階，小跳音旋律；音量刻意壓低，不蓋過操作音效。
+
+    // 「妞妞散步」：8 小節可愛寵物遊戲旋律。
+    // 主旋律刻意使用短短的跳音＋休止，避免像手機通知聲。
     const melody = [
-      [523.25,0.00,.30],[659.25,0.42,.30],[783.99,0.84,.34],
-      [659.25,1.30,.28],[587.33,1.72,.30],[659.25,2.14,.32],
-      [523.25,2.62,.34],[783.99,3.08,.34]
+      [659.25,0.00,.20],[783.99,0.28,.20],[880.00,0.56,.28],
+      [783.99,1.00,.18],[659.25,1.25,.18],[587.33,1.50,.30],
+      [659.25,2.00,.18],[783.99,2.25,.18],[987.77,2.50,.25],
+      [880.00,2.86,.18],[783.99,3.12,.32],
+      [587.33,3.70,.18],[659.25,3.95,.18],[783.99,4.20,.26],
+      [659.25,4.58,.18],[587.33,4.84,.30],
+      [523.25,5.38,.18],[659.25,5.64,.18],[783.99,5.90,.22],
+      [880.00,6.20,.18],[783.99,6.46,.18],[659.25,6.72,.22],
+      [587.33,7.02,.18],[659.25,7.28,.36]
     ];
-    melody.forEach(([f,dur,d])=>bgmNote(f,dur,d,.009));
-    // 很淡的低音襯底
-    bgmNote(261.63,0.00,.72,.0045);
-    bgmNote(349.23,1.72,.72,.0045);
-    bgmNote(261.63,3.08,.62,.0045);
+    melody.forEach(([f,t,d])=>bgmNote(f,t,d,.0085,"triangle"));
+
+    // 輕輕的「蹦、蹦」伴奏，讓它比較像遊戲 BGM 而不是單顆提示音。
+    const bass = [
+      [261.63,0.00],[329.63,0.50],[392.00,1.00],[329.63,1.50],
+      [349.23,2.00],[440.00,2.50],[523.25,3.00],[440.00,3.50],
+      [293.66,4.00],[349.23,4.50],[440.00,5.00],[349.23,5.50],
+      [261.63,6.00],[329.63,6.50],[392.00,7.00],[329.63,7.50]
+    ];
+    bass.forEach(([f,t])=>bgmNote(f,t,.26,.0038,"sine"));
+
+    // 每兩拍一個很淡的高音點綴，像小鈴鐺，但不做「叮！」的通知感。
+    [0.75,2.75,4.75,6.75].forEach((t,i)=>{
+      bgmNote(i%2 ? 1318.51 : 1174.66,t,.12,.0026,"sine");
+    });
   }
 
   function startBgm(){
@@ -400,7 +422,7 @@
     getAudioCtx();
     bgmStarted = true;
     playBgmPhrase();
-    bgmTimer = setInterval(playBgmPhrase, 3900);
+    bgmTimer = setInterval(playBgmPhrase, 8200);
   }
 
   function stopBgm(){
