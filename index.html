@@ -494,7 +494,7 @@
       <button class="secondary hint-btn" id="hintBtn">💡 提示 <span id="hintCount">3</span></button>
     </div>
   </div>
-  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.21</div>
+  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.22</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -669,16 +669,20 @@
   }
 
   function playWin(){
-    tone(523.25,.16,"sine",.04,0);
-    tone(659.25,.16,"sine",.04,.11);
-    tone(783.99,.18,"sine",.045,.22);
-    tone(1046.5,.28,"sine",.05,.34);
+    // 過關：清楚、明亮的上行完成音，最後有一顆 sparkle。
+    tone(523.25,.16,"sine",.052,0);
+    tone(659.25,.17,"sine",.052,.11);
+    tone(783.99,.18,"sine",.055,.22);
+    tone(1046.50,.34,"triangle",.058,.34);
+    tone(1567.98,.22,"sine",.026,.52);
   }
 
   function playLose(){
-    tone(330,.14,"triangle",.04,0);
-    tone(247,.18,"triangle",.045,.12);
-    tone(196,.24,"triangle",.05,.26);
+    // 沒過關：柔和下降，不用刺耳 buzzer。
+    tone(392.00,.16,"triangle",.050,0);
+    tone(329.63,.18,"triangle",.048,.14);
+    tone(261.63,.27,"sine",.052,.30);
+    tone(196.00,.22,"sine",.024,.47);
   }
 
   // 真實音軌背景音樂：第一次互動後播放，以符合手機瀏覽器自動播放限制。
