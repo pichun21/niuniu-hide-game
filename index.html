@@ -494,7 +494,7 @@
       <button class="secondary hint-btn" id="hintBtn">💡 提示 <span id="hintCount">3</span></button>
     </div>
   </div>
-  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.22-direct-sfx</div>
+  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.22-audio-engine</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -636,25 +636,77 @@
       if(!AC) return null;
       audioCtx = new AC();
     }
-    if(audioCtx.state === "suspended") audioCtx.resume();
     return audioCtx;
   }
+
+  // iPhone / iPad Safari：必須在「真實使用者手勢」當下解鎖 Web Audio。
+  let audioUnlocked = false;
+  function unlockAudio(){
+    if(!soundEnabled) return;
+    const ctx = getAudioCtx();
+    if(!ctx) return;
+
+    const prime = ()=>{
+      try{
+        // Safari 對「完全靜音」的解鎖有時會忽略，所以送一個極短、幾乎聽不到的音。
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const now = ctx.currentTime;
+        osc.frequency.setValueAtTime(220, now);
+        gain.gain.setValueAtTime(0.0001, now);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.02);
+        audioUnlocked = true;
+      }catch(e){}
+    };
+
+    if(ctx.state === "suspended"){
+      try{
+        const p = ctx.resume();
+        if(p && typeof p.then === "function") p.then(prime).catch(()=>{});
+        else prime();
+      }catch(e){}
+    }else{
+      prime();
+    }
+  }
+
+  // capture=true：在遊戲自己的 touch/pointer handler 之前先解鎖。
+  document.addEventListener("touchstart", unlockAudio, {passive:true, capture:true});
+  document.addEventListener("pointerdown", unlockAudio, {passive:true, capture:true});
+  document.addEventListener("mousedown", unlockAudio, {passive:true, capture:true});
 
   function tone(freq=440, duration=.12, type="sine", volume=.045, delay=0){
     if(!soundEnabled) return;
     const ctx = getAudioCtx();
     if(!ctx) return;
-    const now = ctx.currentTime + delay;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, now);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(volume, now + .015);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + duration + .03);
+
+    const play = ()=>{
+      try{
+        const now = ctx.currentTime + delay;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(volume, now + .015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration + .03);
+      }catch(e){}
+    };
+
+    if(ctx.state === "suspended"){
+      try{
+        const p=ctx.resume();
+        if(p && typeof p.then === "function") p.then(play).catch(()=>{});
+        else play();
+      }catch(e){}
+    }else{
+      play();
+    }
   }
 
   function playCorrect(){
@@ -669,18 +721,16 @@
   }
 
   function playWin(){
-    tone(523.25,.16,"sine",.055,0);
-    tone(659.25,.17,"sine",.055,.11);
-    tone(783.99,.18,"sine",.058,.22);
-    tone(1046.50,.34,"triangle",.062,.34);
-    tone(1567.98,.22,"sine",.030,.52);
+    tone(523.25,.16,"sine",.04,0);
+    tone(659.25,.16,"sine",.04,.11);
+    tone(783.99,.18,"sine",.045,.22);
+    tone(1046.5,.28,"sine",.05,.34);
   }
 
   function playLose(){
-    tone(392,.16,"triangle",.055,0);
-    tone(329.63,.18,"triangle",.052,.14);
-    tone(261.63,.27,"sine",.058,.30);
-    tone(196,.22,"sine",.030,.47);
+    tone(330,.14,"triangle",.04,0);
+    tone(247,.18,"triangle",.045,.12);
+    tone(196,.24,"triangle",.05,.26);
   }
 
   // 真實音軌背景音樂：第一次互動後播放，以符合手機瀏覽器自動播放限制。
@@ -1036,17 +1086,14 @@
       const correct = solution[r]===c;
       flashCell(r,c,correct ? "correct" : "wrong");
       if(correct){
-        const solvedNow = isSolved();
-        if(solvedNow) playWin();
-        else playCorrect();
+        playCorrect();
         if(navigator.vibrate) navigator.vibrate(22);
-        showToast(solvedNow ? "全部找到啦！🐩✨" : "找到一隻妞妞了！🐩");
+        showToast("找到一隻妞妞了！🐩");
       }else{
         wrongCount++;
         refresh();
         saveGame();
-        if(wrongCount >= 3) playLose();
-        else playWrong();
+        playWrong();
         if(navigator.vibrate) navigator.vibrate([45,35,70]);
         showToast("妞妞不在這格 👀");
         // 錯誤提示播放完後，自動移除錯誤位置的妞妞。
@@ -1133,6 +1180,7 @@
     lost = true;
     stopTimer();
     stopBgm();
+    playLose();
     if(startTime){
       elapsed = Math.floor((Date.now()-startTime)/1000);
       timerEl.textContent = fmt(elapsed);
@@ -1146,6 +1194,7 @@
     won = true;
     stopTimer();
     stopBgm();
+    playWin();
 
     if(startTime) elapsed = Math.floor((Date.now()-startTime)/1000);
     timerEl.textContent = fmt(elapsed);
