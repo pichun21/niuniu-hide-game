@@ -237,7 +237,7 @@
       <button class="primary" id="checkBtn">檢查一下</button>
     </div>
   </div>
-  <div class="footer">🐾 妞妞遊戲室 · Prototype v1.6</div>
+  <div class="footer">🐾 妞妞遊戲室 · Prototype v1.7</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -359,6 +359,56 @@
     tone(196,.24,"triangle",.05,.26);
   }
 
+  // 輕快、柔和的妞妞背景音樂。第一次互動後才播放，以符合手機瀏覽器自動播放限制。
+  let bgmTimer = null;
+  let bgmStarted = false;
+
+  function bgmNote(freq, delay, duration=.34, volume=.010){
+    if(!soundEnabled || won || lost) return;
+    const ctx = getAudioCtx();
+    if(!ctx) return;
+    const now = ctx.currentTime + delay;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(volume, now + .04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + duration + .04);
+  }
+
+  function playBgmPhrase(){
+    if(!soundEnabled || won || lost) return;
+    // C 大調五聲音階，小跳音旋律；音量刻意壓低，不蓋過操作音效。
+    const melody = [
+      [523.25,0.00,.30],[659.25,0.42,.30],[783.99,0.84,.34],
+      [659.25,1.30,.28],[587.33,1.72,.30],[659.25,2.14,.32],
+      [523.25,2.62,.34],[783.99,3.08,.34]
+    ];
+    melody.forEach(([f,dur,d])=>bgmNote(f,dur,d,.009));
+    // 很淡的低音襯底
+    bgmNote(261.63,0.00,.72,.0045);
+    bgmNote(349.23,1.72,.72,.0045);
+    bgmNote(261.63,3.08,.62,.0045);
+  }
+
+  function startBgm(){
+    if(!soundEnabled || bgmStarted || won || lost) return;
+    getAudioCtx();
+    bgmStarted = true;
+    playBgmPhrase();
+    bgmTimer = setInterval(playBgmPhrase, 3900);
+  }
+
+  function stopBgm(){
+    if(bgmTimer) clearInterval(bgmTimer);
+    bgmTimer = null;
+    bgmStarted = false;
+  }
+
   function renderBoard(){
     board.innerHTML = "";
     for(let r=0;r<N;r++){
@@ -397,6 +447,7 @@
 
   function handleCell(r,c){
     if(won || lost) return;
+    startBgm();
     startTimer();
 
     // 已經找到且位置正確的妞妞要鎖定，不允許再次點擊移除。
@@ -503,6 +554,7 @@
   function endGame(){
     lost = true;
     stopTimer();
+    stopBgm();
     playLose();
     if(startTime){
       elapsed = Math.floor((Date.now()-startTime)/1000);
@@ -515,6 +567,7 @@
 
   function win(){
     won = true; stopTimer();
+    stopBgm();
     playWin();
     elapsed = Math.floor((Date.now()-startTime)/1000);
     timerEl.textContent = fmt(elapsed);
@@ -524,7 +577,7 @@
   }
 
   function reset(){
-    stopTimer(); startTime=null; elapsed=0; won=false; lost=false; wrongCount=0;
+    stopTimer(); stopBgm(); startTime=null; elapsed=0; won=false; lost=false; wrongCount=0;
     states = Array.from({length:N},()=>Array(N).fill(0));
     timerEl.textContent="00:00";
     winModal.classList.remove("show");
@@ -548,9 +601,11 @@
     if(soundEnabled){
       getAudioCtx();
       playCorrect();
-      showToast("音效已開啟 🔊");
+      if(startTime && !won && !lost) startBgm();
+      showToast("音樂與音效已開啟 🔊");
     }else{
-      showToast("音效已關閉 🔇");
+      stopBgm();
+      showToast("音樂與音效已關閉 🔇");
     }
   };
   document.getElementById("checkBtn").onclick=()=>{
@@ -562,7 +617,10 @@
     else win();
   };
   document.getElementById("rulesBtn").onclick=()=>rulesModal.classList.add("show");
-  document.getElementById("closeRules").onclick=()=>rulesModal.classList.remove("show");
+  document.getElementById("closeRules").onclick=()=>{
+    rulesModal.classList.remove("show");
+    if(startTime && soundEnabled && !won && !lost) startBgm();
+  };
   rulesModal.addEventListener("click",e=>{if(e.target===rulesModal)rulesModal.classList.remove("show")});
 
   renderBoard();
