@@ -42,9 +42,19 @@
   .pill{background:rgba(255,255,255,.82);border:1px solid #eee2db;border-radius:14px;padding:9px 10px;text-align:center}
   .pill b{display:block;font-size:17px}
   .pill span{font-size:11px;color:var(--muted)}
-  .paw-wrap{display:flex;justify-content:center;gap:6px;min-height:28px;align-items:center;margin-bottom:2px}
-  .paw{font-size:22px;line-height:1;filter:grayscale(1);opacity:.28;transition:.18s ease}
-  .paw.on{filter:none;opacity:1;transform:translateY(-1px)}
+  .paw-wrap{display:flex;justify-content:center;gap:8px;min-height:30px;align-items:center;margin-bottom:2px}
+  .paw{
+    font-size:24px; line-height:1;
+    filter:grayscale(1) brightness(1.15);
+    opacity:.32;
+    transition:.18s ease;
+    transform:scale(.96);
+  }
+  .paw.on{
+    filter:none;
+    opacity:1;
+    transform:translateY(-1px) scale(1.08);
+  }
   .card{background:rgba(255,255,255,.92);border:1px solid #eee2db;border-radius:24px;padding:14px;box-shadow:var(--shadow)}
   .hint{font-size:13px;color:#6e625b;text-align:center;margin:2px 0 12px}
   .board{
@@ -146,9 +156,9 @@
     <div class="pill"><b id="dogCount">0 / 6</b><span>妞妞</span></div>
     <div class="pill">
       <div class="paw-wrap" id="mistakes">
-        <span class="paw" data-paw="1">🐾</span>
-        <span class="paw" data-paw="2">🐾</span>
-        <span class="paw" data-paw="3">🐾</span>
+        <span class="paw" data-paw="1">🦴</span>
+        <span class="paw" data-paw="2">🦴</span>
+        <span class="paw" data-paw="3">🦴</span>
       </div>
       <span>錯誤次數</span>
     </div>
@@ -165,7 +175,7 @@
       <button class="primary" id="checkBtn">檢查一下</button>
     </div>
   </div>
-  <div class="footer">🐾 妞妞遊戲室 · Prototype v1.2</div>
+  <div class="footer">🐾 妞妞遊戲室 · Prototype v1.3</div>
 </div>
 
 <div class="toast" id="toast"></div>
