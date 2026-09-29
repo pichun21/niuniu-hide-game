@@ -494,7 +494,7 @@
       <button class="secondary hint-btn" id="hintBtn">💡 提示 <span id="hintCount">3</span></button>
     </div>
   </div>
-  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.23-sfx-fast</div>
+  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.23b-stable-sfx</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -638,21 +638,7 @@
   [sfxCorrect,sfxWrong,sfxWin,sfxLose].forEach(a=>{
     a.preload="auto";
     a.volume=0.72;
-    try{ a.load(); }catch(e){}
   });
-
-  // 第一次手指碰到遊戲時先讓 Safari 把短音效準備好；
-  // 不改實際播放邏輯，只降低第一次答對時的解碼延遲。
-  let sfxWarmed = false;
-  function warmSfx(){
-    if(sfxWarmed) return;
-    sfxWarmed = true;
-    [sfxCorrect,sfxWrong,sfxWin,sfxLose].forEach(a=>{
-      try{ a.load(); }catch(e){}
-    });
-  }
-  document.addEventListener("touchstart", warmSfx, {passive:true, capture:true});
-  document.addEventListener("pointerdown", warmSfx, {passive:true, capture:true});
 
   function playSfx(a){
     if(!soundEnabled || !a) return;
