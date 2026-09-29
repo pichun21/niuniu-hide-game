@@ -128,6 +128,25 @@
   .cell.correct-flash::after{animation:correctFlash .55s ease}
   .cell.wrong-flash::after{animation:wrongFlash .48s ease}
 
+  /* 手機滑動做筆記：每進入一個新格子都有短促的「按下去」回饋 */
+  .cell.swipe-feedback{animation:swipeCellPulse .16s ease-out}
+  .cell.swipe-feedback::before{
+    content:"";position:absolute;inset:4px;border-radius:8px;pointer-events:none;z-index:8;
+    animation:swipeTouchRing .18s ease-out;
+  }
+  .cell.swipe-add::before{box-shadow:inset 0 0 0 2px rgba(121,95,82,.28)}
+  .cell.swipe-erase::before{box-shadow:inset 0 0 0 2px rgba(255,255,255,.82)}
+  @keyframes swipeCellPulse{
+    0%{transform:scale(1)}
+    42%{transform:scale(.91)}
+    75%{transform:scale(1.035)}
+    100%{transform:scale(1)}
+  }
+  @keyframes swipeTouchRing{
+    0%{opacity:.95;transform:scale(.84)}
+    100%{opacity:0;transform:scale(1.08)}
+  }
+
   /* iPhone Safari 18+：直接點原生 switch 時由系統提供 haptic */
   .haptic-switch{
     position:absolute;
@@ -447,7 +466,7 @@
       <button class="secondary hint-btn" id="hintBtn">💡 提示 <span id="hintCount">3</span></button>
     </div>
   </div>
-  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.17</div>
+  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.18</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -798,26 +817,61 @@
         return cell && board.contains(cell) ? cell : null;
       };
 
-      const paintCell=(cell)=>{
+      const swipeFeedback=(cells,mode)=>{
+        cells.forEach(cell=>{
+          cell.classList.remove("swipe-feedback","swipe-add","swipe-erase");
+          // 強制 reflow，讓快速連續滑動時每一格都能重新播放回饋動畫。
+          void cell.offsetWidth;
+          cell.classList.add("swipe-feedback",mode==="erase" ? "swipe-erase" : "swipe-add");
+          setTimeout(()=>{
+            cell.classList.remove("swipe-feedback","swipe-add","swipe-erase");
+          },190);
+        });
+        // Android / 支援 Vibration API 的裝置：非常短的觸覺點一下。
+        // iPhone 不支援 Vibration API 時仍保留上面的視覺按壓回饋。
+        if(cells.length && navigator.vibrate) navigator.vibrate(4);
+      };
+
+      const paintCell=(cell,mode,changedCells)=>{
         if(!cell) return false;
         const r=+cell.dataset.r, c=+cell.dataset.c;
-        if(states[r][c]!==0) return false;
-        states[r][c]=1;
+
+        if(mode==="erase"){
+          // 擦除模式只擦 ✕，不會碰到已找到的妞妞。
+          if(states[r][c]!==1) return false;
+          states[r][c]=0;
+        }else{
+          // 標記模式只在空白格畫 ✕。
+          if(states[r][c]!==0) return false;
+          states[r][c]=1;
+        }
+
+        changedCells.push(cell);
         return true;
       };
 
-      const paintPath=(x1,y1,x2,y2)=>{
+      const paintPath=(x1,y1,x2,y2,mode)=>{
         const dx=x2-x1, dy=y2-y1;
         const dist=Math.hypot(dx,dy);
         const steps=Math.max(1,Math.ceil(dist/8));
         let changed=false;
+        const changedCells=[];
+        const seen=new Set();
+
         for(let i=0;i<=steps;i++){
           const t=i/steps;
-          changed=paintCell(cellAtPoint(x1+dx*t,y1+dy*t)) || changed;
+          const cell=cellAtPoint(x1+dx*t,y1+dy*t);
+          if(!cell) continue;
+          const key=cell.dataset.r+","+cell.dataset.c;
+          if(seen.has(key)) continue;
+          seen.add(key);
+          changed=paintCell(cell,mode,changedCells) || changed;
         }
+
         if(changed){
           refresh();
-          if(navigator.vibrate) navigator.vibrate(5);
+          // refresh 只重畫格子內容，不會換掉 cell 本身，因此可直接加回饋動畫。
+          swipeFeedback(changedCells,mode);
         }
         return changed;
       };
@@ -827,10 +881,15 @@
         if(e.pointerType!=="touch" && e.pointerType!=="pen") return;
         const cell=cellAtPoint(e.clientX,e.clientY);
         if(!cell) return;
+        const r=+cell.dataset.r, c=+cell.dataset.c;
+        const startState=states[r][c];
         swipe={
           id:e.pointerId,
           sx:e.clientX,sy:e.clientY,
           lx:e.clientX,ly:e.clientY,
+          // 從 ✕ 起手就一路擦；其他可編輯空白格起手就一路畫。
+          mode:startState===1 ? "erase" : "add",
+          startState,
           dragging:false,changed:false
         };
       });
@@ -840,13 +899,19 @@
 
         if(!swipe.dragging){
           if(Math.hypot(e.clientX-swipe.sx,e.clientY-swipe.sy)<10) return;
+          // 已找到的妞妞是鎖定格，不拿它當滑動筆記的起點。
+          if(swipe.startState===2) return;
           swipe.dragging=true;
           suppressTouchClick=true;
           startBgm();
           startTimer();
-          swipe.changed=paintPath(swipe.sx,swipe.sy,e.clientX,e.clientY) || swipe.changed;
+          swipe.changed=paintPath(
+            swipe.sx,swipe.sy,e.clientX,e.clientY,swipe.mode
+          ) || swipe.changed;
         }else{
-          swipe.changed=paintPath(swipe.lx,swipe.ly,e.clientX,e.clientY) || swipe.changed;
+          swipe.changed=paintPath(
+            swipe.lx,swipe.ly,e.clientX,e.clientY,swipe.mode
+          ) || swipe.changed;
         }
 
         swipe.lx=e.clientX;
