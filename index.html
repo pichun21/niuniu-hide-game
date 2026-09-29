@@ -494,7 +494,7 @@
       <button class="secondary hint-btn" id="hintBtn">💡 提示 <span id="hintCount">3</span></button>
     </div>
   </div>
-  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.22-audiofix</div>
+  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.22-direct-sfx</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -669,18 +669,18 @@
   }
 
   function playWin(){
-    tone(523.25,.16,"sine",.052,0);
-    tone(659.25,.17,"sine",.052,.11);
-    tone(783.99,.18,"sine",.055,.22);
-    tone(1046.50,.34,"triangle",.058,.34);
-    tone(1567.98,.22,"sine",.026,.52);
+    tone(523.25,.16,"sine",.055,0);
+    tone(659.25,.17,"sine",.055,.11);
+    tone(783.99,.18,"sine",.058,.22);
+    tone(1046.50,.34,"triangle",.062,.34);
+    tone(1567.98,.22,"sine",.030,.52);
   }
 
   function playLose(){
-    tone(392.00,.16,"triangle",.050,0);
-    tone(329.63,.18,"triangle",.048,.14);
-    tone(261.63,.27,"sine",.052,.30);
-    tone(196.00,.22,"sine",.024,.47);
+    tone(392,.16,"triangle",.055,0);
+    tone(329.63,.18,"triangle",.052,.14);
+    tone(261.63,.27,"sine",.058,.30);
+    tone(196,.22,"sine",.030,.47);
   }
 
   // 真實音軌背景音樂：第一次互動後播放，以符合手機瀏覽器自動播放限制。
@@ -1036,14 +1036,17 @@
       const correct = solution[r]===c;
       flashCell(r,c,correct ? "correct" : "wrong");
       if(correct){
-        playCorrect();
+        const solvedNow = isSolved();
+        if(solvedNow) playWin();
+        else playCorrect();
         if(navigator.vibrate) navigator.vibrate(22);
-        showToast("找到一隻妞妞了！🐩");
+        showToast(solvedNow ? "全部找到啦！🐩✨" : "找到一隻妞妞了！🐩");
       }else{
         wrongCount++;
         refresh();
         saveGame();
-        playWrong();
+        if(wrongCount >= 3) playLose();
+        else playWrong();
         if(navigator.vibrate) navigator.vibrate([45,35,70]);
         showToast("妞妞不在這格 👀");
         // 錯誤提示播放完後，自動移除錯誤位置的妞妞。
@@ -1129,8 +1132,7 @@
   function endGame(){
     lost = true;
     stopTimer();
-    playLose();
-    setTimeout(stopBgm,780);
+    stopBgm();
     if(startTime){
       elapsed = Math.floor((Date.now()-startTime)/1000);
       timerEl.textContent = fmt(elapsed);
@@ -1143,8 +1145,7 @@
   function win(){
     won = true;
     stopTimer();
-    playWin();
-    setTimeout(stopBgm,900);
+    stopBgm();
 
     if(startTime) elapsed = Math.floor((Date.now()-startTime)/1000);
     timerEl.textContent = fmt(elapsed);
