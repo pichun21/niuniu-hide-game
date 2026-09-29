@@ -84,7 +84,21 @@
   }
   .cell.conflict::after{box-shadow:inset 0 0 0 3px var(--bad);background:rgba(210,90,90,.12)}
   .cell.correct-flash::after{animation:correctFlash .55s ease}
-  .cell.wrong-flash::after{animation:wrongFlash .55s ease}
+  .cell.wrong-flash::after{animation:wrongFlash .48s ease}
+
+  /* iPhone Safari 18+：直接點原生 switch 時由系統提供 haptic */
+  .haptic-switch{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    margin:0;
+    opacity:0;
+    z-index:20;
+    cursor:pointer;
+    clip-path:inset(0 round 10px);
+  }
+
   .mark-x{
     position:absolute;inset:0;display:grid;place-items:center;
     font-size:32px;
@@ -163,10 +177,11 @@
   }
   @keyframes wrongFlash{
     0%,100%{transform:translateX(0);box-shadow:inset 0 0 0 0 rgba(201,101,101,0);background:rgba(201,101,101,0)}
-    20%{transform:translateX(-3px)}
-    40%{transform:translateX(3px);box-shadow:inset 0 0 0 4px rgba(201,101,101,.78);background:rgba(201,101,101,.18)}
-    60%{transform:translateX(-2px)}
-    80%{transform:translateX(2px)}
+    16%{transform:translateX(-5px)}
+    32%{transform:translateX(5px);box-shadow:inset 0 0 0 5px rgba(201,101,101,.82);background:rgba(201,101,101,.22)}
+    48%{transform:translateX(-4px)}
+    64%{transform:translateX(4px)}
+    80%{transform:translateX(-2px)}
   }
   @media (max-width:380px){h1{font-size:20px}.app{padding-left:10px;padding-right:10px}.card{padding:10px}}
 </style>
@@ -241,7 +256,7 @@
       <button class="secondary" id="resetBtn">重新開始</button>
     </div>
   </div>
-  <div class="footer">🐾 妞妞遊戲室 · Prototype v2.4</div>
+  <div class="footer">🐾 妞妞遊戲室 · Prototype v2.5</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -348,8 +363,9 @@
   }
 
   function playWrong(){
-    tone(220,.13,"triangle",.05,0);
-    tone(165,.16,"triangle",.035,.08);
+    // 《妞妞零食時間》撞骨頭的低頻核心
+    tone(145,.12,"sine",.075,0);
+    tone(110,.09,"sine",.026,.055);
   }
 
   function playWin(){
@@ -508,6 +524,8 @@
       cell.classList.toggle("conflict",bad.has(r+","+c));
       cell.innerHTML = st===1 ? '<span class="mark-x">×</span>' :
                        st===2 ? '<span class="dog"><img src="data:image/jpeg;base64,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" alt="妞妞"></span>' : "";
+      cell.insertAdjacentHTML("beforeend",
+        '<input class="haptic-switch" type="checkbox" switch tabindex="-1" aria-label="點選格子">');
       if(st===2) dogs++;
     });
     dogCountEl.textContent = dogs+" / 6";
