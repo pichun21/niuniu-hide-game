@@ -241,7 +241,7 @@
       <button class="secondary" id="resetBtn">重新開始</button>
     </div>
   </div>
-  <div class="footer">🐾 妞妞遊戲室 · Prototype v2.2</div>
+  <div class="footer">🐾 妞妞遊戲室 · Prototype v2.3</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -585,6 +585,14 @@
       showToast("音樂與音效已關閉 🔇");
     }
   };
+  document.getElementById("checkBtn")?.addEventListener("click",()=>{
+    const bad=conflicts();
+    const dogs=states.flat().filter(x=>x===2).length;
+    if(bad.size) showToast("有妞妞靠太近或重複了 👀");
+    else if(dogs<6) showToast("目前沒有衝突，繼續找！");
+    else if(!isSolved()) showToast("數量對了，但位置還要再想一下");
+    else win();
+  });
   document.getElementById("rulesBtn").onclick=()=>rulesModal.classList.add("show");
   document.getElementById("closeRules").onclick=()=>{
     rulesModal.classList.remove("show");
