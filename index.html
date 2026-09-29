@@ -46,7 +46,11 @@
   .hint{font-size:13px;color:#6e625b;text-align:center;margin:2px 0 12px}
   .board{
     position:relative;width:100%;aspect-ratio:1;border-radius:18px;overflow:hidden;
-    border:3px solid #6a584f;background:#fffdfa;display:grid;grid-template-columns:repeat(6,1fr);
+    border:3px solid #6a584f;
+    background:#f7f1ec;
+    display:grid;grid-template-columns:repeat(6,1fr);
+    gap:2px;
+    padding:2px;
     touch-action:manipulation;
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,.72),
@@ -54,7 +58,6 @@
   }
   .cell{
     position:relative;display:grid;place-items:center;user-select:none;cursor:pointer;
-    border-right:0;border-bottom:0;
     font-size:clamp(22px,7vw,36px);font-weight:900;
     min-width:0;min-height:0;width:100%;height:100%;overflow:hidden;line-height:1;
     transition:transform .12s ease, background-color .15s ease;
@@ -150,7 +153,7 @@
       <button class="primary" id="checkBtn">檢查一下</button>
     </div>
   </div>
-  <div class="footer">🐾 妞妞遊戲室 · Prototype v0.7</div>
+  <div class="footer">🐾 妞妞遊戲室 · Prototype v0.8</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -262,23 +265,6 @@
         cell.className = "cell";
         cell.dataset.r = r; cell.dataset.c = c;
         cell.style.background = colors[regions[r][c]];
-
-        const region = regions[r][c];
-        const rightSame = c < N - 1 && regions[r][c+1] === region;
-        const bottomSame = r < N - 1 && regions[r+1][c] === region;
-
-        // 一般格線淡一點；不同色區的交界線更清楚。
-        if(c < N - 1){
-          cell.style.borderRight = rightSame
-            ? "1px solid rgba(106,88,79,.12)"
-            : "2px solid rgba(106,88,79,.26)";
-        }
-        if(r < N - 1){
-          cell.style.borderBottom = bottomSame
-            ? "1px solid rgba(106,88,79,.12)"
-            : "2px solid rgba(106,88,79,.26)";
-        }
-
         cell.addEventListener("click", ()=>handleCell(r,c));
         board.appendChild(cell);
       }
