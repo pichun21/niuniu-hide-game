@@ -407,26 +407,6 @@
   #board .cell.swipe-feedback{animation:none !important}
   #board .cell.swipe-feedback::before{animation:swipeTouchLite .13s ease-out !important}
   @keyframes swipeTouchLite{0%{opacity:.72}100%{opacity:0}}
-38%{transform:scale(.92)}72%{transform:scale(1.035)}100%{transform:scale(1)}}
-
-  /* v3.24：點擊回饋只畫在偽元素，不再 transform 棋盤 cell。 */
-  #board .cell.tap-feedback::after,
-  #board .cell.dog-tap-feedback::after{
-    content:"";position:absolute;inset:4px;border-radius:9px;pointer-events:none;
-    animation:tapOverlay .16s ease-out both;
-    box-shadow:inset 0 0 0 2px rgba(111,88,74,.18);
-    background:rgba(255,255,255,.16);
-    z-index:7;
-  }
-  #board .cell.dog-tap-feedback::after{
-    animation-duration:.20s;
-    box-shadow:inset 0 0 0 2px rgba(153,105,79,.28);
-    background:rgba(255,255,255,.22);
-  }
-  @keyframes tapOverlay{
-    0%{opacity:.95}
-    100%{opacity:0}
-  }
 </style>
 </head>
 <body>
@@ -514,7 +494,7 @@
       <button class="secondary hint-btn" id="hintBtn">💡 提示 <span id="hintCount">3</span></button>
     </div>
   </div>
-  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.24</div>
+  <div class="footer">🐾 妞妞遊戲室 · Prototype v3.22</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -753,9 +733,6 @@
     if(won || lost || states[r][c]!==1) return false;
     states[r][c]=0;
     refresh();
-    const tappedCell=board.querySelector('.cell[data-r="'+r+'"][data-c="'+c+'"]');
-    tapFeedback(tappedCell,"erase");
-    playTapTone("erase");
     saveGame();
     if(navigator.vibrate) navigator.vibrate(12);
     showToast("已取消 ✕");
@@ -763,7 +740,6 @@
   }
 
   function renderBoard(){
-    transientWrongCells.clear();
     board.innerHTML = "";
     board.style.gridTemplateColumns = "repeat("+N+", minmax(0,1fr))";
     board.dataset.size = String(N);
@@ -1036,11 +1012,7 @@
     setTimeout(()=>cell.classList.remove(cls),820);
   }
 
-  const transientWrongCells=new Set();
-
   function handleCell(r,c){
-    const transientKey=r+","+c;
-    if(transientWrongCells.has(transientKey)) return;
     if(won || lost) return;
     startBgm();
     startTimer();
@@ -1055,14 +1027,6 @@
 
     states[r][c] = (states[r][c] + 1) % 3;
     refresh();
-    const tappedCell=board.querySelector('.cell[data-r="'+r+'"][data-c="'+c+'"]');
-    if(states[r][c]===1){
-      tapFeedback(tappedCell,"mark");
-      playTapTone("mark");
-    }else if(states[r][c]===2){
-      tapFeedback(tappedCell,"dog");
-      playTapTone("dog");
-    }
     saveGame();
 
     // 只有「放下妞妞」時判斷位置對錯，避免標記 X 時一直被提示。
@@ -1074,7 +1038,6 @@
         if(navigator.vibrate) navigator.vibrate(22);
         showToast("找到一隻妞妞了！🐩");
       }else{
-        transientWrongCells.add(transientKey);
         wrongCount++;
         refresh();
         saveGame();
@@ -1088,7 +1051,6 @@
             refresh();
             saveGame();
           }
-          transientWrongCells.delete(transientKey);
         },620);
 
         if(wrongCount >= 3){
@@ -1177,34 +1139,6 @@
     setTimeout(()=>gameOverModal.classList.add("show"),260);
   }
 
-
-
-  // v3.23：棋盤點擊 UI 回饋。短音避免長時間解題造成疲勞。
-  function playTapTone(kind){
-    if(!soundOn) return;
-    try{
-      ensureAudio();
-      const now=audioCtx.currentTime;
-      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
-      o.type=kind==="dog" ? "sine" : "triangle";
-      const freq=kind==="erase" ? 360 : kind==="dog" ? 620 : 455;
-      o.frequency.setValueAtTime(freq,now);
-      if(kind==="dog") o.frequency.exponentialRampToValueAtTime(760,now+.075);
-      g.gain.setValueAtTime(.0001,now);
-      g.gain.exponentialRampToValueAtTime(kind==="dog" ? .050 : .032,now+.008);
-      g.gain.exponentialRampToValueAtTime(.0001,now+(kind==="dog" ? .115 : .065));
-      o.connect(g); g.connect(audioCtx.destination);
-      o.start(now); o.stop(now+(kind==="dog" ? .13 : .08));
-    }catch(e){}
-  }
-  function tapFeedback(cell,kind="mark"){
-    if(!cell) return;
-    const cls=kind==="dog" ? "dog-tap-feedback" : "tap-feedback";
-    cell.classList.remove("tap-feedback","dog-tap-feedback");
-    void cell.offsetWidth;
-    cell.classList.add(cls);
-    setTimeout(()=>cell.classList.remove(cls),220);
-  }
 
   // v3.22：整關成功 / 失敗專屬音效。沿用 Web Audio，不增加外部音檔。
   function playEndTone(kind){
